@@ -12,7 +12,7 @@ const baseURL = '/api';
 // 创建axios实例
 const api = axios.create({
   baseURL,
-  timeout: 60000, // 60秒超时
+  timeout: 300000, // 5分钟超时（AI 生成知识网络可能需要较长时间）
   headers: {
     'Content-Type': 'application/json'
   }

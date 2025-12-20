@@ -23,10 +23,16 @@ export default async function handler(
       return res.status(400).json({ error: 'text or topic is required' });
     }
 
+    // 限制文本长度避免 AI 处理超时（保留前 8000 字符）
+    const maxTextLength = 8000;
+    const truncatedText = safeText.length > maxTextLength
+      ? safeText.substring(0, maxTextLength) + '\n\n（文本已截断，仅处理前 8000 字）'
+      : safeText;
+
     const taskId = Date.now().toString();
     taskStatus[taskId] = { status: 'processing', progress: 0 };
 
-    const result = await deepseekService.generateKnowledgeNetwork(safeText, safeTopic, safeExpectedTime);
+    const result = await deepseekService.generateKnowledgeNetwork(truncatedText, safeTopic, safeExpectedTime);
     taskStatus[taskId] = { status: 'completed', progress: 100, result };
 
     res.status(200).json({ taskId, result });
@@ -43,5 +49,5 @@ export default async function handler(
 }
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 300, // Pro 计划可用 300 秒；免费计划会自动限制为 10 秒
 };
