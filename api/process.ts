@@ -13,7 +13,7 @@ export default async function handler(
   }
 
   try {
-    const { text, model = 'deepseek', topic, expectedTime } = req.body;
+    const { text, topic, expectedTime } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'text is required' });
@@ -23,34 +23,29 @@ export default async function handler(
     taskStatus[taskId] = { status: 'processing', progress: 0 };
 
     // 异步处理
-    (async () => {
-      try {
-        const result = await deepseekService.generateKnowledgeNetwork(text, topic, expectedTime);
+    deepseekService.generateKnowledgeNetwork(text, topic, expectedTime)
+      .then(result => {
         taskStatus[taskId] = {
           status: 'completed',
           progress: 100,
           result: result
         };
-      } catch (error: any) {
+      })
+      .catch((error: any) => {
         taskStatus[taskId] = {
           status: 'failed',
           progress: 0,
-          error: error.message
+          error: error.message || 'Unknown error'
         };
-      }
-    })();
+      });
 
     res.status(200).json({ taskId });
   } catch (error: any) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Failed: ' + error.message });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
 
 export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
+  maxDuration: 60,
 };

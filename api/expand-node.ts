@@ -22,26 +22,30 @@ export default async function handler(
     const taskId = Date.now().toString();
     taskStatus[taskId] = { status: 'processing', progress: 0 };
 
-    (async () => {
-      try {
-        const result = await deepseekService.expandNode(nodeTitle, nodeSummary);
+    deepseekService.expandNode(nodeTitle, nodeSummary)
+      .then(result => {
         taskStatus[taskId] = {
           status: 'completed',
           progress: 100,
           result: result
         };
-      } catch (error: any) {
+      })
+      .catch((error: any) => {
         taskStatus[taskId] = {
           status: 'failed',
           progress: 0,
-          error: error.message
+          error: error.message || 'Unknown error'
         };
-      }
-    })();
+      });
 
     res.status(200).json({ taskId });
   } catch (error: any) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Failed: ' + error.message });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
+
+export const config = {
+  maxDuration: 60,
+};
+
