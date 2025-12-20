@@ -35,11 +35,12 @@ const deepseekService = {
       const prompt = `请将以下课件内容分析并生成一个3级知识网络结构。
 ${contextInfo ? contextInfo + '\n' : ''}
 要求：
-1. 第1级：识别核心知识点（2-5个）
-2. 第2级：为每个核心知识点找出2-4个子知识点
-3. 第3级：为每个子知识点细分2-3个更具体的知识点
+1. 第1级：根据内容识别核心知识点（3-10个，取决于内容复杂度）
+2. 第2级：为每个核心知识点找出2-5个子知识点
+3. 第3级：为每个子知识点细分2-4个更具体的知识点
 4. 为每个知识点提供简洁的摘要（15-40字）
 5. 严格按照JSON格式返回
+6. 如果内容包含多个章节，每个章节应该对应一个独立的核心知识点
 
 JSON格式示例：
 {
@@ -94,7 +95,7 @@ ${trimmedContent}
     try {
       const openai = getDeepSeekClient();
 
-      const prompt = `请为以下知识点生成3-5个子知识点。
+      const prompt = `请为以下知识点生成3-8个子知识点（根据该知识点的复杂度和内容量决定）。
 知识点：${nodeTitle}
 ${nodeSummary ? `摘要：${nodeSummary}` : ''}
 
@@ -109,7 +110,7 @@ JSON格式：
 
       const completion = await openai.chat.completions.create({
         messages: [
-          { role: "system", content: "你是教育内容分析助手。" },
+          { role: "system", content: "你是教育内容分析助手，请根据知识点的复杂度灵活确定子节点数量。" },
           { role: "user", content: prompt }
         ],
         model: "deepseek-chat",
