@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { KnowledgeNode, UploadResponse, TaskStatus } from '../types';
 
-// API基础URL - 生产环境使用环境变量，开发环境使用代理
-const baseURL = import.meta.env.VITE_API_URL || '/api';
+// API基础URL - Vercel部署时使用相对路径
+const baseURL = '/api';
 
 // 创建axios实例
 const api = axios.create({
