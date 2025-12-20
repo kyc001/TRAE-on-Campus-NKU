@@ -27,10 +27,10 @@ const processController = {
   // 处理文档
   processDocument: async (req: Request, res: Response) => {
     try {
-      const { fileId, text, model = 'deepseek' } = req.body;
+      const { fileId, text, model = 'deepseek', topic, expectedTime } = req.body;
       
-      if (!fileId && !text) {
-        return res.status(400).json({ error: 'Either fileId or text is required' });
+      if (!fileId && !text && !topic) {
+        return res.status(400).json({ error: 'Either fileId, text, or topic is required' });
       }
 
       // 生成任务ID
@@ -38,7 +38,7 @@ const processController = {
       taskStatus[taskId] = { status: 'processing', progress: 0 };
 
       // 异步处理文档
-      documentService.processDocument(fileId, text, model)
+      documentService.processDocument(fileId, text, model, topic, expectedTime)
         .then((result: any) => {
           taskStatus[taskId] = {
             status: 'completed',

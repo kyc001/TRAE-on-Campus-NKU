@@ -6,10 +6,13 @@ import KnowledgeTree from './components/KnowledgeTree';
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState<string>('');
+  const [knowledgeTopic, setKnowledgeTopic] = useState<string>('');
+  const [expectedTime, setExpectedTime] = useState<string>('');
   const [model, setModel] = useState<string>('deepseek');
   const [knowledgeNetwork, setKnowledgeNetwork] = useState<KnowledgeNode | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [showResult, setShowResult] = useState<boolean>(false);
 
   // 处理文件上传
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +28,12 @@ function App() {
     setError('');
   };
 
+  // 返回主页
+  const handleBackToHome = () => {
+    setShowResult(false);
+    setKnowledgeNetwork(null);
+  };
+
   // 处理生成知识网络按钮点击
   const handleGenerate = async () => {
     setLoading(true);
@@ -34,18 +43,24 @@ function App() {
     try {
       let result: KnowledgeNode;
 
+      // 构建请求参数
+      const requestParams = {
+        topic: knowledgeTopic.trim(),
+        expectedTime: expectedTime.trim(),
+        model
+      };
+
       if (file) {
         // 处理文件上传情况
         const uploadResult = await uploadFile(file);
-        result = await generateKnowledgeNetwork(uploadResult.fileId, undefined, model);
-      } else if (text.trim()) {
-        // 处理文本输入情况
-        result = await generateKnowledgeNetwork(undefined, text.trim(), model);
+        result = await generateKnowledgeNetwork(uploadResult.fileId, text.trim(), model, requestParams);
       } else {
-        throw new Error('请上传文件或输入文本内容');
+        // 处理文本输入情况
+        result = await generateKnowledgeNetwork(undefined, text.trim(), model, requestParams);
       }
 
       setKnowledgeNetwork(result);
+      setShowResult(true); // 切换到结果视图
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败，请重试');
     } finally {
@@ -55,79 +70,165 @@ function App() {
 
   return (
     <div className="app">
-      <h1>📚 期末复习知识网络生成工具</h1>
-      
-      <div className="main-content">
-        {/* 左侧上传区域 */}
-        <div className="upload-section">
-          <h2>📁 上传课件</h2>
-          
-          {/* 文件上传 */}
-          <div className="file-upload">
-            <input
-              type="file"
-              accept=".pdf,.txt"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
-              {file ? (
-                <p>已选择文件：{file.name}</p>
-              ) : (
-                <p>点击上传 PDF 或 TXT 文件</p>
-              )}
-            </label>
+      {/* 加载遮罩 */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>AI 正在分析并生成知识网络...</p>
+        </div>
+      )}
+
+      {/* 主页视图 */}
+      {!showResult && !loading && (
+        <div className="home-view">
+          <div className="header">
+            <h1>📚 智能知识网络生成工具</h1>
+            <p className="subtitle">让 AI 帮你梳理知识脉络，构建学习路径</p>
           </div>
           
-          {/* 模型选择 */}
-          <div className="model-selector">
-            <label htmlFor="model">选择 AI 模型：</label>
-            <select 
-              id="model" 
-              value={model} 
-              onChange={(e) => setModel(e.target.value)}
+          <div className="input-container">
+            {/* 学习目标设置 */}
+            <div className="card">
+              <h2>🎯 学习目标设置</h2>
+              
+              <div className="form-group">
+                <label htmlFor="knowledgeTopic">想要学习的知识主题：</label>
+                <input
+                  type="text"
+                  id="knowledgeTopic"
+                  className="input-field"
+                  placeholder="例如：数据结构与算法、机器学习基础"
+                  value={knowledgeTopic}
+                  onChange={(e) => setKnowledgeTopic(e.target.value)}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="expectedTime">期望花费时间（小时）：</label>
+                <input
+                  type="number"
+                  id="expectedTime"
+                  className="input-field"
+                  placeholder="例如：20"
+                  min="1"
+                  step="1"
+                  value={expectedTime}
+                  onChange={(e) => setExpectedTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* 学习资料上传 */}
+            <div className="card">
+              <h2>📁 上传学习资料</h2>
+              
+              <div className="file-upload">
+                <input
+                  type="file"
+                  accept=".pdf,.txt"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="file-upload-label">
+                  <div className="upload-icon">📄</div>
+                  {file ? (
+                    <div>
+                      <p className="file-name">{file.name}</p>
+                      <p className="file-hint">点击更换文件</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="upload-text">点击上传 PDF 或 TXT 文件</p>
+                      <p className="upload-hint">支持课件、笔记等学习资料</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              <div className="divider">
+                <span>或</span>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="text">直接粘贴文本内容：</label>
+                <textarea
+                  id="text"
+                  className="text-input"
+                  placeholder="在此粘贴课件内容、笔记或其他学习资料..."
+                  value={text}
+                  onChange={handleTextChange}
+                  rows={8}
+                ></textarea>
+              </div>
+            </div>
+
+            {/* AI 模型选择 */}
+            <div className="card">
+              <h2>🤖 选择 AI 模型</h2>
+              <div className="model-selector">
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="model"
+                    value="deepseek"
+                    checked={model === 'deepseek'}
+                    onChange={(e) => setModel(e.target.value)}
+                  />
+                  <span className="radio-label">
+                    <strong>DeepSeek</strong>
+                    <small>强大的推理能力</small>
+                  </span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="model"
+                    value="doubao"
+                    checked={model === 'doubao'}
+                    onChange={(e) => setModel(e.target.value)}
+                  />
+                  <span className="radio-label">
+                    <strong>豆包 (Doubao)</strong>
+                    <small>中文理解优秀</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* 生成按钮 */}
+            <button 
+              className="generate-btn"
+              onClick={handleGenerate}
+              disabled={loading || (!file && !text.trim() && !knowledgeTopic.trim())}
             >
-              <option value="deepseek">DeepSeek</option>
-              <option value="doubao">豆包 (Doubao)</option>
-            </select>
+              ✨ 生成知识网络
+            </button>
+            
+            {error && <div className="error-message">{error}</div>}
+          </div>
+        </div>
+      )}
+
+      {/* 结果视图 */}
+      {showResult && knowledgeNetwork && !loading && (
+        <div className="result-view">
+          <div className="result-header">
+            <button className="back-btn" onClick={handleBackToHome}>
+              ← 返回
+            </button>
+            <h1>🌐 知识网络图谱</h1>
+            <div className="header-actions">
+              <button className="action-btn">💾 保存</button>
+              <button className="action-btn">🖨️ 导出</button>
+            </div>
           </div>
           
-          {/* 文本输入 */}
-          <h3>或直接粘贴文本内容</h3>
-          <textarea
-            className="text-input"
-            placeholder="请输入课件内容..."
-            value={text}
-            onChange={handleTextChange}
-          ></textarea>
-          
-          {/* 生成按钮 */}
-          <button 
-            className="primary"
-            onClick={handleGenerate}
-            disabled={loading}
-          >
-            {loading ? '生成中...' : '生成知识网络'}
-          </button>
-          
-          {/* 错误信息 */}
-          {error && <div className="error">{error}</div>}
-        </div>
-        
-        {/* 右侧结果显示区域 */}
-        <div className="result-section">
-          <h2>🌐 知识网络</h2>
-          
-          {loading ? (
-            <div className="loading"></div>
-          ) : knowledgeNetwork ? (
+          <div className="result-content">
             <KnowledgeTree data={knowledgeNetwork} />
-          ) : (
-            <p>请上传文件或输入文本内容，然后点击"生成知识网络"按钮</p>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

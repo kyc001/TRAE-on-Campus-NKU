@@ -6,7 +6,7 @@ import doubaoService from './doubao.js';
 // 文档处理服务
 const documentService = {
   // 处理文档，生成知识网络
-  processDocument: async (fileId?: string, text?: string, model: string = 'deepseek'): Promise<any> => {
+  processDocument: async (fileId?: string, text?: string, model: string = 'deepseek', topic?: string, expectedTime?: string): Promise<any> => {
     try {
       let content = '';
       
@@ -36,15 +36,15 @@ const documentService = {
       } else if (text) {
         content = text;
       } else {
-        throw new Error('No content provided');
+        content = '';
       }
 
       // 根据选择的模型调用不同的 API
       let result;
       if (model === 'doubao') {
-        result = await doubaoService.generateKnowledgeNetwork(content);
+        result = await doubaoService.generateKnowledgeNetwork(content, topic, expectedTime);
       } else {
-        result = await deepseekService.generateKnowledgeNetwork(content);
+        result = await deepseekService.generateKnowledgeNetwork(content, topic, expectedTime);
       }
       
       return result;

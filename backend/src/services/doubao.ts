@@ -51,7 +51,7 @@ ${trimmedContent}
           { role: "system", content: "你是一个专业的教育内容分析助手，擅长将课件内容结构化为知识网络。" },
           { role: "user", content: prompt }
         ],
-        model: "doubao-pro-32k",
+        model: "doubao-seed-1-6-251015",
         temperature: 0.7,
       });
 
@@ -89,7 +89,7 @@ ${trimmedContent}
     try {
       const completion = await openai.chat.completions.create({
         messages: [{ role: "user", content: "你好" }],
-        model: "doubao-pro-32k",
+        model: "doubao-seed-1-6-251015",
       });
       return completion.choices[0]?.message?.content || '';
     } catch (error) {

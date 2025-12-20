@@ -25,11 +25,12 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
 };
 
 // 处理文档，生成知识网络
-export const processDocument = async (fileId?: string, text?: string, model?: string): Promise<string> => {
+export const processDocument = async (fileId?: string, text?: string, model?: string, params?: { topic?: string; expectedTime?: string }): Promise<string> => {
   const response = await api.post<{ taskId: string }>('/process', {
     fileId,
     text,
-    model
+    model,
+    ...params
   });
   
   return response.data.taskId;
@@ -64,9 +65,9 @@ export const pollTaskStatus = async (taskId: string): Promise<KnowledgeNode> => 
 };
 
 // 生成知识网络（综合方法）
-export const generateKnowledgeNetwork = async (fileId?: string, text?: string, model?: string): Promise<KnowledgeNode> => {
+export const generateKnowledgeNetwork = async (fileId?: string, text?: string, model?: string, params?: { topic?: string; expectedTime?: string }): Promise<KnowledgeNode> => {
   // 调用后端API处理文档
-  const taskId = await processDocument(fileId, text, model);
+  const taskId = await processDocument(fileId, text, model, params);
   
   // 轮询任务状态，直到完成或失败
   const result = await pollTaskStatus(taskId);
