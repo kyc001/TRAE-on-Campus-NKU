@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { KnowledgeNode, UploadResponse, TaskStatus } from '../types';
 
-// API基础URL - Vercel部署时使用相对路径
-const baseURL = '/api';
+// API基础URL
+// - 本地开发：默认使用相对路径 /api（由 Vite proxy 转发到 http://localhost:3000）
+// - 生产部署：通过 VITE_API_URL 指向后端（例如 https://xxx.up.railway.app/api）
+const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
+const baseURL = envApiUrl.length > 0 ? envApiUrl.replace(/\/+$/, '') : '/api';
 
 // 创建axios实例
 const api = axios.create({
@@ -29,14 +32,20 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
 
 // 处理文档，生成知识网络
 export const processDocument = async (fileId?: string, text?: string, model?: string, params?: { topic?: string; expectedTime?: string }): Promise<string> => {
-  const response = await api.post<{ taskId: string }>('/process', {
+  const response = await api.post<any>('/process', {
+    // Vercel Functions 方案中不依赖 fileId 持久化；保留字段仅用于兼容
     fileId,
     text,
     model,
-    ...params
+    ...params,
   });
-  
-  return response.data.taskId;
+
+  if (response.data && typeof response.data.taskId === 'string') {
+    return response.data.taskId;
+  }
+
+  // 兼容：若后端直接返回 result，这里返回一个伪 taskId，调用方会优先使用 result
+  return 'direct';
 };
 
 // 获取任务状态
@@ -69,28 +78,43 @@ export const pollTaskStatus = async (taskId: string): Promise<KnowledgeNode> => 
 
 // 生成知识网络（综合方法）
 export const generateKnowledgeNetwork = async (fileId?: string, text?: string, model?: string, params?: { topic?: string; expectedTime?: string }): Promise<KnowledgeNode> => {
-  // 调用后端API处理文档
-  const taskId = await processDocument(fileId, text, model, params);
-  
-  // 轮询任务状态，直到完成或失败
-  const result = await pollTaskStatus(taskId);
-  
-  return result;
+  // 优先走同步返回：/process -> { result }
+  const response = await api.post<any>('/process', {
+    fileId,
+    text,
+    model,
+    ...params,
+  });
+
+  if (response.data && response.data.result) {
+    return response.data.result as KnowledgeNode;
+  }
+
+  // 兼容旧实现：拿 taskId 再轮询
+  const taskId = response.data?.taskId as string | undefined;
+  if (!taskId) {
+    throw new Error('后端响应缺少 result/taskId');
+  }
+  return await pollTaskStatus(taskId);
 };
 
 // 扩展节点的子节点
 export const expandNode = async (nodeTitle: string, nodeSummary?: string, model?: string): Promise<KnowledgeNode> => {
-  const response = await api.post<{ taskId: string }>('/expand-node', {
+  const response = await api.post<any>('/expand-node', {
     nodeTitle,
     nodeSummary,
     model
   });
-  
-  const taskId = response.data.taskId;
-  const result = await pollTaskStatus(taskId);
-  
-  // 返回扩展后的完整节点对象
-  return result;
+
+  if (response.data && response.data.result) {
+    return response.data.result as KnowledgeNode;
+  }
+
+  const taskId = response.data?.taskId as string | undefined;
+  if (!taskId) {
+    throw new Error('后端响应缺少 result/taskId');
+  }
+  return await pollTaskStatus(taskId);
 };
 
 // 导出知识网络为JSON
@@ -126,19 +150,29 @@ export const parseJsonFile = async (file: File): Promise<KnowledgeNode> => {
 
 // 问AI解释知识点
 export const askAI = async (nodeTitle: string, nodeSummary?: string, context?: string, model?: string): Promise<string> => {
-  const response = await api.post<{ taskId: string }>('/ask-ai', {
+  const response = await api.post<any>('/ask-ai', {
     nodeTitle,
     nodeSummary,
     context,
     model
   });
-  
-  const taskId = response.data.taskId;
-  const result = await pollTaskStatus(taskId);
-  
-  // 返回AI的解释文本（result是包含explanation字段的对象）
-  if (result && typeof result === 'object' && 'explanation' in result) {
-    return (result as any).explanation || '未能获取解释';
+
+  const directResult = response.data?.result;
+  if (directResult) {
+    if (typeof directResult === 'object' && 'explanation' in directResult) {
+      return (directResult as any).explanation || '未能获取解释';
+    }
+    return typeof directResult === 'string' ? directResult : '未能获取解释';
   }
-  return typeof result === 'string' ? result : '未能获取解释';
+
+  const taskId = response.data?.taskId as string | undefined;
+  if (!taskId) {
+    throw new Error('后端响应缺少 result/taskId');
+  }
+
+  const polled = await pollTaskStatus(taskId);
+  if (polled && typeof polled === 'object' && 'explanation' in polled) {
+    return (polled as any).explanation || '未能获取解释';
+  }
+  return typeof polled === 'string' ? polled : '未能获取解释';
 };

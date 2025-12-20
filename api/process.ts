@@ -15,33 +15,29 @@ export default async function handler(
   try {
     const { text, topic, expectedTime } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ error: 'text is required' });
+    const safeText = typeof text === 'string' ? text : '';
+    const safeTopic = typeof topic === 'string' ? topic : '';
+    const safeExpectedTime = typeof expectedTime === 'string' ? expectedTime : undefined;
+
+    if (!safeText && !safeTopic) {
+      return res.status(400).json({ error: 'text or topic is required' });
     }
 
     const taskId = Date.now().toString();
     taskStatus[taskId] = { status: 'processing', progress: 0 };
 
-    // 异步处理
-    deepseekService.generateKnowledgeNetwork(text, topic, expectedTime)
-      .then(result => {
-        taskStatus[taskId] = {
-          status: 'completed',
-          progress: 100,
-          result: result
-        };
-      })
-      .catch((error: any) => {
-        taskStatus[taskId] = {
-          status: 'failed',
-          progress: 0,
-          error: error.message || 'Unknown error'
-        };
-      });
+    const result = await deepseekService.generateKnowledgeNetwork(safeText, safeTopic, safeExpectedTime);
+    taskStatus[taskId] = { status: 'completed', progress: 100, result };
 
-    res.status(200).json({ taskId });
+    res.status(200).json({ taskId, result });
   } catch (error: any) {
     console.error('Error:', error);
+    const taskId = Date.now().toString();
+    taskStatus[taskId] = {
+      status: 'failed',
+      progress: 0,
+      error: error?.message || 'Internal server error',
+    };
     res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

@@ -18,6 +18,7 @@ export interface UploadResponse {
   fileId: string;
   fileName: string;
   fileSize: number;
+  text?: string;
 }
 
 // 任务状态类型

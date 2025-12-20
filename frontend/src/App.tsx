@@ -73,7 +73,10 @@ function App() {
       if (file) {
         // 处理文件上传情况
         const uploadResult = await uploadFile(file);
-        result = await generateKnowledgeNetwork(uploadResult.fileId, text.trim(), model, requestParams);
+
+        const extractedText = (uploadResult as any).text ? String((uploadResult as any).text) : '';
+        const combinedText = [extractedText, text.trim()].filter(Boolean).join('\n\n');
+        result = await generateKnowledgeNetwork(undefined, combinedText, model, requestParams);
       } else {
         // 处理文本输入情况
         result = await generateKnowledgeNetwork(undefined, text.trim(), model, requestParams);
