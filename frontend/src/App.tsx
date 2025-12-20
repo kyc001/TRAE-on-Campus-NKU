@@ -6,6 +6,7 @@ import KnowledgeTree from './components/KnowledgeTree';
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState<string>('');
+  const [model, setModel] = useState<string>('deepseek');
   const [knowledgeNetwork, setKnowledgeNetwork] = useState<KnowledgeNode | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -36,10 +37,10 @@ function App() {
       if (file) {
         // 处理文件上传情况
         const uploadResult = await uploadFile(file);
-        result = await generateKnowledgeNetwork(uploadResult.fileId);
+        result = await generateKnowledgeNetwork(uploadResult.fileId, undefined, model);
       } else if (text.trim()) {
         // 处理文本输入情况
-        result = await generateKnowledgeNetwork(undefined, text.trim());
+        result = await generateKnowledgeNetwork(undefined, text.trim(), model);
       } else {
         throw new Error('请上传文件或输入文本内容');
       }
@@ -65,7 +66,7 @@ function App() {
           <div className="file-upload">
             <input
               type="file"
-              accept=".pdf,.ppt,.pptx"
+              accept=".pdf,.txt"
               onChange={handleFileChange}
               style={{ display: 'none' }}
               id="file-upload"
@@ -74,9 +75,22 @@ function App() {
               {file ? (
                 <p>已选择文件：{file.name}</p>
               ) : (
-                <p>点击或拖拽文件到此处上传</p>
+                <p>点击上传 PDF 或 TXT 文件</p>
               )}
             </label>
+          </div>
+          
+          {/* 模型选择 */}
+          <div className="model-selector">
+            <label htmlFor="model">选择 AI 模型：</label>
+            <select 
+              id="model" 
+              value={model} 
+              onChange={(e) => setModel(e.target.value)}
+            >
+              <option value="deepseek">DeepSeek</option>
+              <option value="doubao">豆包 (Doubao)</option>
+            </select>
           </div>
           
           {/* 文本输入 */}

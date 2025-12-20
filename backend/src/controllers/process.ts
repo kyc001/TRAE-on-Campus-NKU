@@ -27,7 +27,7 @@ const processController = {
   // 处理文档
   processDocument: async (req: Request, res: Response) => {
     try {
-      const { fileId, text } = req.body;
+      const { fileId, text, model = 'deepseek' } = req.body;
       
       if (!fileId && !text) {
         return res.status(400).json({ error: 'Either fileId or text is required' });
@@ -38,7 +38,7 @@ const processController = {
       taskStatus[taskId] = { status: 'processing', progress: 0 };
 
       // 异步处理文档
-      documentService.processDocument(fileId, text)
+      documentService.processDocument(fileId, text, model)
         .then((result: any) => {
           taskStatus[taskId] = {
             status: 'completed',

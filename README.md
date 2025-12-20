@@ -102,3 +102,19 @@ const config = {
 ## 📝 License
 
 MIT" 
+
+
+Set-Location "d:\Study\TRAE on Campus\backend"
+npm run dev
+Set-Location "d:\Study\TRAE on Campus\frontend"
+npm run dev
+人工智能基础课程
+
+第一章：机器学习概述
+机器学习是人工智能的核心，包括监督学习、无监督学习和强化学习。
+
+第二章：神经网络
+神经网络由输入层、隐藏层和输出层组成，通过反向传播算法进行训练。
+
+第三章：深度学习
+深度学习使用多层神经网络，能够自动学习特征表示。
