@@ -1,23 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleCORS, taskStatus } from './lib/utils';
-
-// 动态导入backend的服务 - 使用相对路径不带.js
-async function getAIService(model: string = 'deepseek') {
-  if (model === 'doubao') {
-    const doubaoModule = await import('../backend/src/services/doubao');
-    return doubaoModule.default;
-  } else {
-    const deepseekModule = await import('../backend/src/services/ai');
-    return deepseekModule.default;
-  }
-}
-
-async function getPDFParse() {
-  // 使用require方式导入pdf-parse
-  const { createRequire } = await import('module');
-  const require = createRequire(import.meta.url);
-  return require('pdf-parse');
-}
+import deepseekService from './services/ai';
 
 export default async function handler(
   req: VercelRequest,
@@ -36,16 +19,13 @@ export default async function handler(
       return res.status(400).json({ error: 'text is required' });
     }
 
-    // 生成任务ID
     const taskId = Date.now().toString();
     taskStatus[taskId] = { status: 'processing', progress: 0 };
 
     // 异步处理
     (async () => {
       try {
-        const aiService = await getAIService(model);
-        const result = await aiService.generateKnowledgeNetwork(text, topic, expectedTime);
-        
+        const result = await deepseekService.generateKnowledgeNetwork(text, topic, expectedTime);
         taskStatus[taskId] = {
           status: 'completed',
           progress: 100,
@@ -62,8 +42,8 @@ export default async function handler(
 
     res.status(200).json({ taskId });
   } catch (error: any) {
-    console.error('Error processing document:', error);
-    res.status(500).json({ error: 'Failed to process document: ' + error.message });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed: ' + error.message });
   }
 }
 

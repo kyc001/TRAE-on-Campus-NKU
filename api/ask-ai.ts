@@ -1,15 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleCORS, taskStatus } from './lib/utils';
-
-async function getAIService(model: string = 'deepseek') {
-  if (model === 'doubao') {
-    const doubaoModule = await import('../backend/src/services/doubao');
-    return doubaoModule.default;
-  } else {
-    const deepseekModule = await import('../backend/src/services/ai');
-    return deepseekModule.default;
-  }
-}
+import deepseekService from './services/ai';
 
 export default async function handler(
   req: VercelRequest,
@@ -22,7 +13,7 @@ export default async function handler(
   }
 
   try {
-    const { nodeTitle, nodeSummary, context, model = 'deepseek' } = req.body;
+    const { nodeTitle, nodeSummary, context } = req.body;
 
     if (!nodeTitle) {
       return res.status(400).json({ error: 'nodeTitle is required' });
@@ -33,9 +24,7 @@ export default async function handler(
 
     (async () => {
       try {
-        const aiService = await getAIService(model);
-        const result = await aiService.explainNode(nodeTitle, nodeSummary, context);
-        
+        const result = await deepseekService.explainNode(nodeTitle, nodeSummary, context);
         taskStatus[taskId] = {
           status: 'completed',
           progress: 100,
@@ -52,7 +41,7 @@ export default async function handler(
 
     res.status(200).json({ taskId });
   } catch (error: any) {
-    console.error('Error asking AI:', error);
-    res.status(500).json({ error: 'Failed to get AI explanation: ' + error.message });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed: ' + error.message });
   }
 }
