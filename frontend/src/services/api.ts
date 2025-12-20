@@ -2,10 +2,8 @@ import axios from 'axios';
 import { KnowledgeNode, UploadResponse, TaskStatus } from '../types';
 
 // API基础URL
-// - 本地开发：默认使用相对路径 /api（由 Vite proxy 转发到 http://localhost:3000）
-// - 生产部署：通过 VITE_API_URL 指向后端（例如 https://xxx.up.railway.app/api）
-const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
-const baseURL = envApiUrl.length > 0 ? envApiUrl.replace(/\/+$/, '') : '/api';
+// 全 Vercel 部署（前端 + /api Functions）时，始终使用同域相对路径。
+const baseURL = '/api';
 
 // 创建axios实例
 const api = axios.create({
