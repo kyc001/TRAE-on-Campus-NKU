@@ -142,6 +142,7 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
   const [aiExplanation, setAiExplanation] = useState<string>('');
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [loadingExplanation, setLoadingExplanation] = useState<boolean>(false);
+  const [preloadingNodes, setPreloadingNodes] = useState<Set<string>>(new Set());
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -150,6 +151,12 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
   useEffect(() => {
     addToCache(data);
   }, [data]);
+
+  // 计算当前深度（基于 history 长度）
+  const getCurrentDepth = () => history.length;
+
+  // 预加载阈值
+  const PRELOAD_DEPTH_THRESHOLD = 10;
 
   // 当 currentNode 改变时更新视图
   useEffect(() => {
@@ -212,14 +219,80 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
     }
   };
 
-  // 进入下一级（自动生成子节点）
+  // 预加载节点的子节点和孙节点（两级）
+  const preloadNodeDescendants = async (node: KnowledgeNode, currentDepth: number) => {
+    // 如果深度超过阈值，不预加载
+    if (currentDepth >= PRELOAD_DEPTH_THRESHOLD) {
+      console.log(`深度 ${currentDepth} 已达阈值 ${PRELOAD_DEPTH_THRESHOLD}，停止预加载`);
+      return;
+    }
+
+    const nodeKey = getNodeCacheKey(node);
+    
+    // 如果正在预加载，跳过
+    if (preloadingNodes.has(nodeKey)) {
+      return;
+    }
+
+    try {
+      setPreloadingNodes(prev => new Set(prev).add(nodeKey));
+
+      // 第一级：如果当前节点没有子节点，先生成
+      if (!node.children || node.children.length === 0) {
+        const { expandNode } = await import('../services/api');
+        const expandedNode = await expandNode(node.title, node.summary, 'deepseek');
+        node.children = expandedNode.children || [];
+        addToCache(node);
+        console.log(`预加载：为 "${node.title}" 生成了 ${node.children.length} 个子节点`);
+      }
+
+      // 第二级：为每个子节点预加载其子节点（如果深度允许）
+      if (currentDepth + 1 < PRELOAD_DEPTH_THRESHOLD && node.children && node.children.length > 0) {
+        const preloadPromises = node.children.map(async (child) => {
+          if (!child.children || child.children.length === 0) {
+            try {
+              const { expandNode } = await import('../services/api');
+              const expandedChild = await expandNode(child.title, child.summary, 'deepseek');
+              child.children = expandedChild.children || [];
+              addToCache(child);
+              console.log(`预加载：为 "${child.title}" 生成了 ${child.children.length} 个孙节点`);
+            } catch (error) {
+              console.warn(`预加载 "${child.title}" 的子节点失败:`, error);
+            }
+          }
+        });
+
+        // 并行预加载所有子节点，但不阻塞主流程
+        Promise.all(preloadPromises).catch(err => {
+          console.warn('部分预加载失败:', err);
+        });
+      }
+    } catch (error) {
+      console.error(`预加载 "${node.title}" 失败:`, error);
+    } finally {
+      setPreloadingNodes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(nodeKey);
+        return newSet;
+      });
+    }
+  };
+
+  // 进入下一级（自动生成子节点 + 预加载后两级）
   const handleEnterChild = async (child: KnowledgeNode) => {
-    // 如果已有子节点，直接进入
+    const currentDepth = getCurrentDepth();
+    
+    // 如果已有子节点，直接进入并触发预加载
     if (child.children && child.children.length > 0) {
       addToCache(child);
       setHistory([...history, currentNode]);
       setCurrentNode(child);
       setSelectedNode(null);
+      
+      // 异步预加载后两级（不阻塞UI）
+      if (currentDepth + 1 < PRELOAD_DEPTH_THRESHOLD) {
+        preloadNodeDescendants(child, currentDepth + 1);
+      }
       return;
     }
 
@@ -233,6 +306,11 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
         setHistory([...history, currentNode]);
         setCurrentNode(cachedNode);
         setSelectedNode(null);
+        
+        // 预加载后两级
+        if (currentDepth + 1 < PRELOAD_DEPTH_THRESHOLD) {
+          preloadNodeDescendants(cachedNode, currentDepth + 1);
+        }
         setExpandingNode(false);
         return;
       }
@@ -257,6 +335,11 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
       setHistory([...history, currentNode]);
       setCurrentNode(updatedNode);
       setSelectedNode(null);
+      
+      // 预加载后两级
+      if (currentDepth + 1 < PRELOAD_DEPTH_THRESHOLD) {
+        preloadNodeDescendants(updatedNode, currentDepth + 1);
+      }
       
     } catch (error) {
       console.error('生成子节点失败:', error);
@@ -492,7 +575,11 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
           
           {/* 缓存信息 */}
           <div style={{ marginTop: '15px', padding: '8px', background: 'rgba(100, 100, 100, 0.1)', borderRadius: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            缓存: {cacheKeys.length}/{MAX_CACHE_SIZE}
+            <div>缓存: {cacheKeys.length}/{MAX_CACHE_SIZE}</div>
+            <div>当前深度: {getCurrentDepth()} / {PRELOAD_DEPTH_THRESHOLD}</div>
+            {preloadingNodes.size > 0 && (
+              <div style={{ color: '#10b981' }}>🔄 预加载中: {preloadingNodes.size} 节点</div>
+            )}
           </div>
         </div>
       )}

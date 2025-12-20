@@ -14,8 +14,8 @@ function getDeepSeekClient(): OpenAI {
 
 // DeepSeek API 服务
 const deepseekService = {
-  // 从文本内容生成知识网络
-  generateKnowledgeNetwork: async (content: string, topic?: string, expectedTime?: string): Promise<any> => {
+  // 从文本内容生成知识网络（两级模式）
+  generateKnowledgeNetwork: async (content: string, topic?: string, expectedTime?: string, levels: number = 2): Promise<any> => {
     try {
       const openai = getDeepSeekClient();
 
@@ -23,7 +23,7 @@ const deepseekService = {
         ? content
         : (topic ? `主题：${topic}` : '');
 
-      const maxLength = 3000;
+      const maxLength = 8000;
       const trimmedContent = effectiveContent.length > maxLength
         ? effectiveContent.substring(0, maxLength) + '...(内容已截断)'
         : effectiveContent;
@@ -32,15 +32,16 @@ const deepseekService = {
       if (topic) contextInfo += `学习主题：${topic}\n`;
       if (expectedTime) contextInfo += `预计学习时间：${expectedTime}小时\n`;
 
-      const prompt = `请将以下课件内容分析并生成一个3级知识网络结构。
+      // 两级模式：只生成根节点 + 第一级子节点
+      const prompt = `请将以下课件内容分析并生成一个2级知识网络结构。
 ${contextInfo ? contextInfo + '\n' : ''}
 要求：
 1. 第1级：根据内容识别核心知识点（3-10个，取决于内容复杂度）
 2. 第2级：为每个核心知识点找出2-5个子知识点
-3. 第3级：为每个子知识点细分2-4个更具体的知识点
-4. 为每个知识点提供简洁的摘要（15-40字）
-5. 严格按照JSON格式返回
-6. 如果内容包含多个章节，每个章节应该对应一个独立的核心知识点
+3. 为每个知识点提供简洁的摘要（15-40字）
+4. 严格按照JSON格式返回
+5. 如果内容包含多个章节，每个章节应该对应一个独立的核心知识点
+6. 第2级子知识点的 children 字段应为空数组 []
 
 JSON格式示例：
 {
@@ -54,13 +55,23 @@ JSON格式示例：
         {
           "title": "子知识点1.1",
           "summary": "具体内容说明",
-          "children": [
-            {
-              "title": "细分知识点1.1.1",
-              "summary": "更详细描述",
-              "children": []
-            }
-          ]
+          "children": []
+        },
+        {
+          "title": "子知识点1.2",
+          "summary": "具体内容说明",
+          "children": []
+        }
+      ]
+    },
+    {
+      "title": "核心知识点2",
+      "summary": "该知识点的核心内容",
+      "children": [
+        {
+          "title": "子知识点2.1",
+          "summary": "具体内容说明",
+          "children": []
         }
       ]
     }
