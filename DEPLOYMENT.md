@@ -1,422 +1,220 @@
-# 🚀 项目部署指南
+# 🚀 Vercel 部署指南
 
-## 📋 目录
+本项目采用**前后端分离部署**方案，前端部署到Vercel，后端部署到Railway/Render。
 
-1. [服务器准备](#服务器准备)
-2. [环境配置](#环境配置)
-3. [后端部署](#后端部署)
-4. [前端部署](#前端部署)
-5. [Nginx配置](#nginx配置)
-6. [环境变量配置](#环境变量配置)
-7. [启动服务](#启动服务)
-8. [常见问题](#常见问题)
+## 📋 快速部署步骤
 
-## 🖥️ 服务器准备
+### 一、后端部署到Railway（推荐）
 
-### 选择服务器
+#### 1. 准备Railway账号
+- 访问 [railway.app](https://railway.app/)
+- 使用GitHub账号登录
 
-你可以选择以下任意一种云服务器：
-- 阿里云 ECS
-- 腾讯云 CVM
-- AWS EC2
-- GCP Compute Engine
-- 华为云 ECS
+#### 2. 通过GitHub部署（最简单）
+1. 将代码推送到GitHub
+2. 在Railway点击 "New Project"
+3. 选择 "Deploy from GitHub repo"
+4. 选择你的仓库
+5. 设置Root Directory为 `backend`
+6. 添加环境变量：
+   - `DEEPSEEK_API_KEY`: 你的DeepSeek API密钥
+   - `PORT`: 3000
+7. 点击Deploy
+8. 在Settings中点击 "Generate Domain" 获取后端URL
 
-### 服务器配置建议
+### 二、前端部署到Vercel
 
-| 配置项 | 最低要求 | 推荐配置 |
-|--------|----------|----------|
-| CPU | 1核 | 2核 |
-| 内存 | 2GB | 4GB |
-| 存储 | 40GB | 80GB SSD |
-| 带宽 | 1Mbps | 5Mbps |
-| 操作系统 | Ubuntu 20.04+ | Ubuntu 22.04 LTS |
+#### 通过Vercel Dashboard部署（推荐）
 
-### 安全组配置
+1. **连接GitHub仓库**
+   - 访问 [vercel.com](https://vercel.com/)
+   - 点击 "New Project"
+   - 导入你的GitHub仓库
 
-确保服务器安全组开放以下端口：
-- 80（HTTP）
-- 443（HTTPS，可选但推荐）
-- 22（SSH）
-- 3000（后端服务，可关闭，通过Nginx反向代理）
+2. **配置构建设置**
+   - Framework Preset: `Vite`
+   - Root Directory: `frontend`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
 
-## ⚙️ 环境配置
+3. **添加环境变量**
+   在Vercel项目的 Settings -> Environment Variables 中添加：
+   ```
+   VITE_API_URL = https://your-backend.up.railway.app/api
+   ```
+   （将URL替换为Railway生成的域名）
 
-### 1. 连接服务器
+4. **部署**
+   - 点击 "Deploy"
+   - 等待构建完成（约2-3分钟）
 
-使用SSH连接到你的服务器：
+## 🔧 必要的代码修改
 
-```bash
-ssh root@your-server-ip
-```
+### 1. 后端CORS配置
 
-### 2. 更新系统
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### 3. 安装Node.js 18+
-
-使用NodeSource安装Node.js 18：
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-验证安装：
-
-```bash
-node -v  # 应该显示 v18.x.x
-npm -v   # 应该显示 9.x.x 或更高
-```
-
-### 4. 安装Git
-
-```bash
-sudo apt install -y git
-```
-
-### 5. 安装PM2（进程管理器）
-
-```bash
-npm install -g pm2
-```
-
-### 6. 安装Nginx
-
-```bash
-sudo apt install -y nginx
-```
-
-## 🔧 后端部署
-
-### 1. 克隆代码
-
-在服务器上创建项目目录并克隆代码：
-
-```bash
-mkdir -p /opt/trae-project
-cd /opt/trae-project
-git clone https://your-repo-url.git .
-```
-
-### 2. 安装依赖
-
-```bash
-cd backend
-npm install
-```
-
-### 3. 配置环境变量
-
-创建`.env`文件：
-
-```bash
-cp .env.example .env  # 如果没有.env.example，直接创建
-nano .env
-```
-
-添加以下配置（根据实际情况修改）：
-
-```env
-# 端口配置
-PORT=3000
-
-# AI服务配置
-# DeepSeek API
-DEEPSEEK_API_KEY=your-deepseek-api-key
-
-# 豆包API
-DOUBAO_API_KEY=your-doubao-api-key
-
-# Google Gemini API (可选)
-GOOGLE_API_KEY=your-google-api-key
-```
-
-### 4. 构建项目
-
-```bash
-npm run build
-```
-
-### 5. 使用PM2启动后端服务
-
-```bash
-# 先构建
-npm run build
-
-# 使用npm start启动（不推荐用于生产环境）
-npm run start
-
-# 或者使用PM2直接启动（推荐）
-pm run build
-pm run start
-```
-
-验证服务是否启动：
-
-```bash
-curl http://localhost:3000/health
-# 应该返回 {"status":"ok"}
-```
-
-## 🎨 前端部署
-
-### 1. 安装依赖
-
-```bash
-cd /opt/trae-project/frontend
-npm install
-```
-
-### 2. 构建项目
-
-```bash
-npm run build
-```
-
-构建完成后，静态文件会生成在`dist`目录中。
-
-### 3. 配置Vite代理
-
-前端的API请求会通过Vite代理到后端，确保`vite.config.ts`中的代理配置正确：
+编辑 `backend/src/server.ts`，更新CORS配置：
 
 ```typescript
-server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:3000',
-      changeOrigin: true,
-    },
-  },
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://*.vercel.app',  // 允许所有Vercel域名
+    'https://your-custom-domain.com'  // 如果有自定义域名
+  ],
+  credentials: true
+}));
+```
+
+### 2. 后端Railway配置
+
+在 `backend/` 目录创建 `railway.toml`：
+
+```toml
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npm run build && npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+```
+
+### 3. 确保后端有构建脚本
+
+检查 `backend/package.json`：
+
+```json
+{
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  }
 }
 ```
 
-## 📝 Nginx配置
+## 📝 部署清单
 
-### 1. 创建Nginx配置文件
+- [ ] 代码推送到GitHub
+- [ ] Railway创建项目并部署后端
+- [ ] 获取Railway后端URL
+- [ ] 更新后端CORS配置
+- [ ] Vercel导入项目
+- [ ] 在Vercel配置环境变量 `VITE_API_URL`
+- [ ] Vercel部署前端
+- [ ] 测试文件上传功能
 
+## ✅ 部署验证
+
+### 1. 测试后端
 ```bash
-sudo nano /etc/nginx/sites-available/trae-project
+curl https://your-backend.up.railway.app/health
 ```
+应返回: `{"status":"ok"}`
 
-### 2. 配置Nginx
+### 2. 测试前端
+- 访问Vercel提供的URL
+- 上传PDF文件测试
+- 检查浏览器控制台无错误
 
-添加以下配置（根据实际情况修改）：
+## 🐛 常见问题解决
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;  # 替换为你的域名或IP地址
+### CORS错误
+**症状**: 浏览器控制台显示 "CORS policy: No 'Access-Control-Allow-Origin'"
 
-    # 前端静态资源
-    location / {
-        root /opt/trae-project/frontend/dist;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
+**解决**:
+1. 检查后端CORS配置是否包含Vercel域名
+2. 重新部署后端
+3. 清除浏览器缓存
 
-    # 后端API反向代理
-    location /api {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+### 文件上传失败
+**症状**: PDF上传后显示错误
 
-    # 健康检查
-    location /health {
-        proxy_pass http://localhost:3000/health;
-    }
+**原因**: Railway/Render的文件系统是临时的
 
-    # 错误页面
-    error_page 404 /index.html;
-    error_page 500 502 503 504 /50x.html;
-    location = /50x.html {
-        root /usr/share/nginx/html;
-    }
-}
-```
+**解决方案**:
+- 短期：重启后文件会丢失，适合测试
+- 长期：集成云存储服务（S3、Cloudinary等）
 
-### 3. 启用配置文件
+### API请求超时
+**症状**: 请求时间过长或超时
 
-```bash
-sudo ln -s /etc/nginx/sites-available/trae-project /etc/nginx/sites-enabled/
-```
+**解决**:
+1. Railway免费计划会休眠，首次请求较慢
+2. 考虑升级到Hobby计划（$5/月）
+3. 或使用Render的付费计划
 
-### 4. 测试Nginx配置
+### 构建失败
+**检查项**:
+- Node版本是否匹配（推荐18+）
+- 依赖是否正确安装
+- 查看构建日志定位问题
 
-```bash
-sudo nginx -t
-```
+## 🚀 进阶配置
 
-### 5. 重启Nginx
+### 自定义域名
 
-```bash
-sudo systemctl restart nginx
-```
+**Vercel前端**:
+1. 在项目Settings -> Domains
+2. 添加你的域名
+3. 按提示配置DNS
 
-## 🔒 环境变量配置
+**Railway后端**:
+1. 在项目Settings -> Custom Domain
+2. 添加域名并配置DNS
 
-### 后端环境变量
+### 环境变量管理
 
-在`backend`目录下创建`.env`文件：
+使用不同环境变量：
+- Development: `.env`
+- Production (Railway): Dashboard添加
+- Production (Vercel): Dashboard添加
 
-```bash
-# 端口配置
-PORT=3000
+### 性能优化
 
-# AI服务配置
-DEEPSEEK_API_KEY=your-deepseek-api-key
-DOUBAO_API_KEY=your-doubao-api-key
-GOOGLE_API_KEY=your-google-api-key
+1. **启用CDN**: Vercel自动启用
+2. **压缩资源**: Vite构建已优化
+3. **后端缓存**: 考虑添加Redis缓存
 
-# 其他配置（根据需要添加）
-# MAX_FILE_SIZE=10485760  # 10MB
-# UPLOAD_DIR=uploads
-```
+## 💰 成本预估
 
-### 前端环境变量
+| 服务 | 免费额度 | 付费计划 |
+|------|---------|---------|
+| Vercel | 100GB带宽/月 | $20/月起 |
+| Railway | $5试用额度 | $5/月起 |
+| Render | 750小时/月 | $7/月起 |
 
-在`frontend`目录下创建`.env`文件（可选，用于配置API地址等）：
+**推荐配置**: 
+- 个人/学习项目：全部使用免费计划
+- 小型生产项目：Railway Hobby ($5) + Vercel Pro ($20)
 
-```bash
-VITE_API_BASE_URL=/api
-```
+## 🔄 持续部署
 
-## 🚀 启动服务
+两个平台都支持自动部署：
 
-### 1. 启动后端服务
+**Vercel**: 
+- 推送到GitHub主分支 → 自动部署
+- 推送到其他分支 → 创建预览部署
 
-```bash
-cd /opt/trae-project/backend
-npm run build
-npm run start
-```
+**Railway**:
+- 推送到GitHub → 自动重新部署
+- 可在Dashboard暂停自动部署
 
-或者使用PM2管理（推荐）：
+## 📊 监控日志
 
-```bash
-cd /opt/trae-project/backend
-npm run build
-pm run start
-```
+**Vercel日志**:
+- Dashboard -> 你的项目 -> Deployments -> 点击部署 -> Logs
 
-### 2. 启动Nginx
+**Railway日志**:
+- Dashboard -> 你的项目 -> Deployments -> View Logs
 
-```bash
-sudo systemctl start nginx
-```
+## 🆘 获取帮助
 
-### 3. 设置开机自启
-
-```bash
-# 设置PM2开机自启
-pm install -g pm2
-sudo pm2 startup
-
-# 保存当前PM2进程列表
-pm run build
-npm run start
-
-# 设置Nginx开机自启
-sudo systemctl enable nginx
-```
-
-## 🔍 验证部署
-
-打开浏览器访问：
-- 前端应用：`http://your-domain.com` 或 `http://your-server-ip`
-- 后端健康检查：`http://your-domain.com/health`
-
-## 📊 PM2管理
-
-### 常用PM2命令
-
-```bash
-# 查看进程状态
-pm run build
-npm run start
-
-# 重启服务
-npm run build
-npm run start
-
-# 停止服务
-npm run build
-npm run start
-
-# 查看日志
-npm run build
-npm run start
-
-# 实时查看日志
-npm run build
-npm run start
-```
-
-## ❓ 常见问题
-
-### 1. 前端无法访问后端API
-
-**问题**：前端页面无法加载数据，控制台显示API请求失败
-
-**解决方案**：
-- 检查后端服务是否正常运行：`curl http://localhost:3000/health`
-- 检查Nginx配置中的代理设置是否正确
-- 检查防火墙是否开放了3000端口
-- 检查前端API配置中的baseURL是否正确
-
-### 2. 后端服务启动失败
-
-**问题**：`npm run start` 后服务立即停止
-
-**解决方案**：
-- 查看日志：`npm run build` 或 `npm run start`
-- 检查环境变量是否配置正确
-- 检查端口是否被占用：`lsof -i :3000`
-- 确保uploads目录存在：`mkdir -p uploads`
-
-### 3. 前端页面显示404
-
-**问题**：访问域名时显示Nginx 404页面
-
-**解决方案**：
-- 检查前端dist目录是否存在
-- 检查Nginx配置中的root路径是否正确
-- 确保Nginx配置已启用：`ls -la /etc/nginx/sites-enabled/`
-- 重启Nginx：`sudo systemctl restart nginx`
-
-### 4. 上传PDF文件失败
-
-**问题**：上传PDF文件时失败，显示超时或错误
-
-**解决方案**：
-- 检查后端服务是否正常运行
-- 检查上传文件大小限制：在Nginx配置中添加 `client_max_body_size 20M;`
-- 检查uploads目录权限：`chmod 755 uploads`
-
-## 📞 技术支持
-
-如果遇到其他问题，可以通过以下方式获取帮助：
-
-- 查看项目README.md文件
-- 检查项目日志文件
-- 联系项目开发团队
-
-## 🎉 部署成功
-
-恭喜！你的项目已经成功部署到服务器上。现在你可以通过浏览器访问你的应用，开始使用智能知识网络生成工具了！
+- Vercel文档: https://vercel.com/docs
+- Railway文档: https://docs.railway.app
+- GitHub Issues: 提交问题到项目仓库
 
 ---
 
-**作者**：智能知识网络生成工具团队  
-**版本**：v1.0.0  
-**日期**：2024-01-01
+**部署完成后，你的应用将全球可访问！🎉**

@@ -1,9 +1,12 @@
 import axios from 'axios';
 import { KnowledgeNode, UploadResponse, TaskStatus } from '../types';
 
+// API基础URL - 生产环境使用环境变量，开发环境使用代理
+const baseURL = import.meta.env.VITE_API_URL || '/api';
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 60000, // 60秒超时
   headers: {
     'Content-Type': 'application/json'
