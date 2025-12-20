@@ -74,3 +74,18 @@ export const generateKnowledgeNetwork = async (fileId?: string, text?: string, m
   
   return result;
 };
+
+// 扩展节点的子节点
+export const expandNode = async (nodeTitle: string, nodeSummary?: string, model?: string): Promise<KnowledgeNode[]> => {
+  const response = await api.post<{ taskId: string }>('/expand-node', {
+    nodeTitle,
+    nodeSummary,
+    model
+  });
+  
+  const taskId = response.data.taskId;
+  const result = await pollTaskStatus(taskId);
+  
+  // 返回扩展的子节点数组
+  return result.children || [];
+};

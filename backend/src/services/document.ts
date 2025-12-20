@@ -52,6 +52,24 @@ const documentService = {
       console.error('Error processing document:', error);
       throw error;
     }
+  },
+
+  // 扩展节点的子节点
+  expandNode: async (nodeTitle: string, nodeSummary?: string, model: string = 'deepseek'): Promise<any> => {
+    try {
+      // 根据选择的模型调用不同的 API
+      let result;
+      if (model === 'doubao') {
+        result = await doubaoService.expandNode(nodeTitle, nodeSummary);
+      } else {
+        result = await deepseekService.expandNode(nodeTitle, nodeSummary);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error expanding node:', error);
+      throw error;
+    }
   }
 };
 

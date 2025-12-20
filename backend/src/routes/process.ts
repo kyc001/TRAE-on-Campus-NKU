@@ -20,6 +20,7 @@ const upload = multer({ storage: storage });
 // 路由
 router.post('/upload', upload.single('file'), processController.uploadFile);
 router.post('/process', processController.processDocument);
+router.post('/expand-node', processController.expandNode);
 router.get('/status/:id', processController.getStatus);
 
 // 导出路由

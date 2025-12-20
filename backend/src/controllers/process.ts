@@ -79,6 +79,44 @@ const processController = {
       console.error('Error getting task status:', error);
       res.status(500).json({ error: 'Failed to get task status' });
     }
+  },
+
+  // 扩展节点的子节点
+  expandNode: async (req: Request, res: Response) => {
+    try {
+      const { nodeTitle, nodeSummary, model = 'deepseek' } = req.body;
+      
+      if (!nodeTitle) {
+        return res.status(400).json({ error: 'nodeTitle is required' });
+      }
+
+      // 生成任务ID
+      const taskId = Date.now().toString();
+      taskStatus[taskId] = { status: 'processing', progress: 0 };
+
+      // 异步扩展节点
+      documentService.expandNode(nodeTitle, nodeSummary, model)
+        .then((result: any) => {
+          taskStatus[taskId] = {
+            status: 'completed',
+            progress: 100,
+            result: result
+          };
+        })
+        .catch((error: Error) => {
+          taskStatus[taskId] = {
+            status: 'failed',
+            progress: 0,
+            error: error.message
+          };
+        });
+
+      // 返回任务ID
+      res.json({ taskId });
+    } catch (error) {
+      console.error('Error expanding node:', error);
+      res.status(500).json({ error: 'Failed to expand node' });
+    }
   }
 };
 
