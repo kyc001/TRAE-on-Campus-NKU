@@ -19,7 +19,10 @@ const api = axios.create({
 });
 
 // 上传文件（现在支持浏览器端解析 PDF，无文件大小限制）
-export const uploadFile = async (file: File): Promise<UploadResponse> => {
+export const uploadFile = async (
+  file: File, 
+  onProgress?: (current: number, total: number) => void
+): Promise<UploadResponse> => {
   // 如果是 PDF，在浏览器端解析
   if (file.name.toLowerCase().endsWith('.pdf')) {
     try {
@@ -28,6 +31,9 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
       
       let text = '';
       for (let i = 1; i <= pdf.numPages; i++) {
+        if (onProgress) {
+          onProgress(i, pdf.numPages);
+        }
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         const pageText = content.items.map((item: any) => item.str).join(' ');

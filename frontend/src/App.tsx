@@ -13,6 +13,7 @@ function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [showResult, setShowResult] = useState<boolean>(false);
+  const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
 
   // 处理文件上传
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +73,11 @@ function App() {
 
       if (file) {
         // 处理文件上传情况
-        const uploadResult = await uploadFile(file);
+        setParseProgress({ current: 0, total: 1 });
+        const uploadResult = await uploadFile(file, (current, total) => {
+          setParseProgress({ current, total });
+        });
+        setParseProgress(null);
 
         const extractedText = (uploadResult as any).text ? String((uploadResult as any).text) : '';
         const combinedText = [extractedText, text.trim()].filter(Boolean).join('\n\n');
@@ -97,7 +102,11 @@ function App() {
       {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
-          <p>AI 正在分析并生成知识网络...</p>
+          {parseProgress ? (
+            <p>正在解析 PDF：第 {parseProgress.current} / {parseProgress.total} 页</p>
+          ) : (
+            <p>AI 正在分析并生成知识网络...</p>
+          )}
         </div>
       )}
 
