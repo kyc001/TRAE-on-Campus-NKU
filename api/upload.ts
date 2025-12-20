@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const form = formidable({
       multiples: false,
-      maxFileSize: 25 * 1024 * 1024, // 25MB
+      maxFileSize: 4 * 1024 * 1024, // 4MB（Vercel 免费计划限制 ~4.5MB）
       keepExtensions: true,
     });
 
@@ -71,7 +71,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('Error uploading file:', error);
-    res.status(500).json({ error: error?.message || 'Failed to upload file' });
+    const statusCode = error?.httpCode === 413 ? 413 : 500;
+    const message = error?.httpCode === 413 
+      ? 'File too large. Maximum size is 4MB on Vercel free plan.'
+      : (error?.message || 'Failed to upload file');
+    res.status(statusCode).json({ error: message });
   }
 }
 
