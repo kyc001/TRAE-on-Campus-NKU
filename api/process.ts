@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleCORS, taskStatus } from './lib/utils';
-import deepseekService from './services/ai';
+import { handleCORS, taskStatus } from './lib/utils.js';
+import deepseekService from './services/ai.js';
 
 export default async function handler(
   req: VercelRequest,

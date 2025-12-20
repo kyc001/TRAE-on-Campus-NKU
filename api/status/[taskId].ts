@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleCORS, taskStatus } from '../lib/utils';
+import { handleCORS, taskStatus } from '../lib/utils.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCORS(req, res)) return;

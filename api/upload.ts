@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import formidable, { type File as FormidableFile } from 'formidable';
 import pdfParse from 'pdf-parse';
-import { handleCORS } from './lib/utils';
+import { handleCORS } from './lib/utils.js';
 
 function pickFirstFile(files: formidable.Files): FormidableFile | null {
   const candidates = Object.values(files).flatMap((value) => {
