@@ -1,20 +1,32 @@
 import OpenAI from "openai";
 
-// 初始化 DeepSeek AI 客户端
-const openai = new OpenAI({
-  baseURL: 'https://api.deepseek.com',
-  apiKey: process.env.DEEPSEEK_API_KEY || '',
-});
+function getDeepSeekClient(): OpenAI {
+  const apiKey = (process.env.DEEPSEEK_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error('DEEPSEEK_API_KEY 未配置：请在 Vercel Project Settings -> Environment Variables 添加该变量，并重新部署');
+  }
+
+  return new OpenAI({
+    baseURL: 'https://api.deepseek.com',
+    apiKey,
+  });
+}
 
 // DeepSeek API 服务
 const deepseekService = {
   // 从文本内容生成知识网络
   generateKnowledgeNetwork: async (content: string, topic?: string, expectedTime?: string): Promise<any> => {
     try {
+      const openai = getDeepSeekClient();
+
+      const effectiveContent = (content || '').trim().length > 0
+        ? content
+        : (topic ? `主题：${topic}` : '');
+
       const maxLength = 3000;
-      const trimmedContent = content.length > maxLength 
-        ? content.substring(0, maxLength) + '...(内容已截断)'
-        : content;
+      const trimmedContent = effectiveContent.length > maxLength
+        ? effectiveContent.substring(0, maxLength) + '...(内容已截断)'
+        : effectiveContent;
 
       let contextInfo = '';
       if (topic) contextInfo += `学习主题：${topic}\n`;
@@ -80,6 +92,8 @@ ${trimmedContent}
   // 扩展节点
   expandNode: async (nodeTitle: string, nodeSummary?: string): Promise<any> => {
     try {
+      const openai = getDeepSeekClient();
+
       const prompt = `请为以下知识点生成3-5个子知识点。
 知识点：${nodeTitle}
 ${nodeSummary ? `摘要：${nodeSummary}` : ''}
@@ -114,6 +128,8 @@ JSON格式：
   // 解释知识点
   explainNode: async (nodeTitle: string, nodeSummary?: string, context?: string): Promise<any> => {
     try {
+      const openai = getDeepSeekClient();
+
       const contextInfo = context ? `\n学习路径：${context}` : '';
       const prompt = `请详细解释以下知识点：
 ${nodeTitle}
