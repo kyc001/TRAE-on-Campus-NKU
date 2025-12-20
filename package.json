@@ -1,6 +1,7 @@
 {
   "name": "trae-on-campus",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "cd frontend && npm install && npm run build"
