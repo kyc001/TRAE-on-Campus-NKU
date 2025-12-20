@@ -1,14 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleCORS, taskStatus } from './lib/utils';
 
-// 动态导入backend的服务
+// 动态导入backend的服务 - 使用相对路径不带.js
 async function getAIService(model: string = 'deepseek') {
   if (model === 'doubao') {
-    const { default: doubaoService } = await import('../backend/src/services/doubao.js');
-    return doubaoService;
+    const doubaoModule = await import('../backend/src/services/doubao');
+    return doubaoModule.default;
   } else {
-    const { default: deepseekService } = await import('../backend/src/services/ai.js');
-    return deepseekService;
+    const deepseekModule = await import('../backend/src/services/ai');
+    return deepseekModule.default;
   }
 }
 

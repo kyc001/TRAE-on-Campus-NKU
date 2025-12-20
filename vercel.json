@@ -3,15 +3,5 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install --prefix frontend && npm install",
   "devCommand": "cd frontend && npm run dev",
-  "framework": null,
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/frontend/dist/$1"
-    }
-  ]
+  "framework": null
 }
