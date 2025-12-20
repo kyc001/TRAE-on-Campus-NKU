@@ -8,8 +8,15 @@ import processRouter from './routes/process.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 中间件
-app.use(cors());
+// 中间件 - CORS配置允许Vercel域名
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://*.vercel.app',
+    /https:\/\/.*\.vercel\.app$/
+  ],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
