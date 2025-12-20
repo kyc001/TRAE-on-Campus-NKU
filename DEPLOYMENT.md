@@ -24,30 +24,53 @@
 
 ### 二、前端部署到Vercel
 
-#### 通过Vercel Dashboard部署（推荐）
+#### ⚠️ 重要：必须设置Root Directory
+
+**如果是第一次部署：**
 
 1. **连接GitHub仓库**
    - 访问 [vercel.com](https://vercel.com/)
    - 点击 "New Project"
    - 导入你的GitHub仓库
 
-2. **配置构建设置**
-   - Framework Preset: `Vite`
-   - Root Directory: `frontend`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-   - Install Command: `npm install`
+2. **⚠️ 配置构建设置（关键步骤）**
+   
+   在"Configure Project"页面：
+   
+   - **Framework Preset**: 选择 `Vite`
+   
+   - **Root Directory**: 
+     - 找到"Root Directory"这一行
+     - 点击右侧的 **"Edit"** 按钮
+     - 在弹出的输入框中输入：`frontend`
+     - 点击"Save"
+   
+   - **Build Command**: 自动填充 `npm run build`（不用改）
+   - **Output Directory**: 自动填充 `dist`（不用改）
+   - **Install Command**: 自动填充 `npm install`（不用改）
 
 3. **添加环境变量**
-   在Vercel项目的 Settings -> Environment Variables 中添加：
+   
+   展开"Environment Variables"部分：
    ```
-   VITE_API_URL = https://your-backend.up.railway.app/api
+   Name: VITE_API_URL
+   Value: https://your-backend.up.railway.app/api
    ```
-   （将URL替换为Railway生成的域名）
+   勾选 `Production`
 
-4. **部署**
-   - 点击 "Deploy"
-   - 等待构建完成（约2-3分钟）
+4. **点击Deploy**
+
+**如果已经部署但构建失败：**
+
+1. 进入项目的 **Settings** 页面
+2. 找到 **General** 选项卡
+3. 找到 **Root Directory** 设置
+4. 点击 **Edit**
+5. 输入 `frontend`
+6. 点击 **Save**
+7. 返回 **Deployments** 页面
+8. 点击最新部署右侧的 **...** 菜单
+9. 选择 **Redeploy**
 
 ## 🔧 必要的代码修改
 
@@ -96,14 +119,34 @@ restartPolicyMaxRetries = 10
 
 ## 📝 部署清单
 
+在Vercel部署时按照以下步骤：
+
+**准备阶段**
 - [ ] 代码推送到GitHub
-- [ ] Railway创建项目并部署后端
-- [ ] 获取Railway后端URL
-- [ ] 更新后端CORS配置
-- [ ] Vercel导入项目
-- [ ] 在Vercel配置环境变量 `VITE_API_URL`
-- [ ] Vercel部署前端
-- [ ] 测试文件上传功能
+- [ ] 确保.env文件不在Git中（已在.gitignore）
+
+**后端部署（Railway）**
+- [ ] Railway创建项目
+- [ ] 设置Root Directory为 `backend`
+- [ ] 添加环境变量 `DEEPSEEK_API_KEY`
+- [ ] 添加环境变量 `PORT=3000`
+- [ ] 等待部署完成
+- [ ] 获取Railway后端URL（如：https://xxx.up.railway.app）
+- [ ] 测试健康检查：访问 https://xxx.up.railway.app/health
+
+**前端部署（Vercel）**
+- [ ] Vercel导入GitHub仓库
+- [ ] ⚠️ 设置Root Directory为 `frontend`（必须！）
+- [ ] Framework选择 `Vite`
+- [ ] 添加环境变量 `VITE_API_URL` = `https://xxx.up.railway.app/api`
+- [ ] 点击Deploy
+- [ ] 等待构建完成
+
+**验证测试**
+- [ ] 访问Vercel给的域名
+- [ ] 测试上传PDF文件
+- [ ] 检查浏览器控制台无CORS错误
+- [ ] 测试知识图谱生成
 
 ## ✅ 部署验证
 
