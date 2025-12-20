@@ -1,0 +1,33 @@
+{
+  "title": "测试知识网络",
+  "summary": "这是一个测试用的知识网络结构",
+  "children": [
+    {
+      "title": "核心概念1",
+      "summary": "第一个核心概念的详细说明",
+      "children": [
+        {
+          "title": "子概念1.1",
+          "summary": "第一个子概念的详细内容",
+          "children": []
+        },
+        {
+          "title": "子概念1.2",
+          "summary": "第二个子概念的详细内容",
+          "children": []
+        }
+      ]
+    },
+    {
+      "title": "核心概念2",
+      "summary": "第二个核心概念的详细说明",
+      "children": [
+        {
+          "title": "子概念2.1",
+          "summary": "另一个子概念的详细内容",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

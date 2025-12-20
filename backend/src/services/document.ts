@@ -70,6 +70,24 @@ const documentService = {
       console.error('Error expanding node:', error);
       throw error;
     }
+  },
+
+  // 问AI解释知识点
+  askAI: async (nodeTitle: string, nodeSummary?: string, context?: string, model: string = 'deepseek'): Promise<any> => {
+    try {
+      // 根据选择的模型调用不同的 API
+      let result;
+      if (model === 'doubao') {
+        result = await doubaoService.explainNode(nodeTitle, nodeSummary, context);
+      } else {
+        result = await deepseekService.explainNode(nodeTitle, nodeSummary, context);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error asking AI:', error);
+      throw error;
+    }
   }
 };
 

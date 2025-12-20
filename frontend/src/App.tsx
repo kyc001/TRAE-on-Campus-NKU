@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { KnowledgeNode } from './types';
-import { generateKnowledgeNetwork, uploadFile } from './services/api';
+import { generateKnowledgeNetwork, uploadFile, parseJsonFile, exportKnowledgeNetwork } from './services/api';
 import KnowledgeTree from './components/KnowledgeTree';
 
 function App() {
@@ -15,10 +15,25 @@ function App() {
   const [showResult, setShowResult] = useState<boolean>(false);
 
   // 处理文件上传
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
       setError('');
+      
+      // 如果是JSON文件，直接解析并显示
+      if (selectedFile.name.endsWith('.json')) {
+        setLoading(true);
+        try {
+          const knowledgeData = await parseJsonFile(selectedFile);
+          setKnowledgeNetwork(knowledgeData);
+          setShowResult(true);
+        } catch (err) {
+          setError('解析JSON文件失败：' + (err instanceof Error ? err.message : '未知错误'));
+        } finally {
+          setLoading(false);
+        }
+      }
     }
   };
 
@@ -36,6 +51,11 @@ function App() {
 
   // 处理生成知识网络按钮点击
   const handleGenerate = async () => {
+    // 如果是JSON文件，已经在handleFileChange中处理了
+    if (file && file.name.endsWith('.json')) {
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setKnowledgeNetwork(null);
@@ -43,7 +63,7 @@ function App() {
     try {
       let result: KnowledgeNode;
 
-      // 构建请求参数
+      // 构建request参数
       const requestParams = {
         topic: knowledgeTopic.trim(),
         expectedTime: expectedTime.trim(),
@@ -125,7 +145,7 @@ function App() {
               <div className="file-upload">
                 <input
                   type="file"
-                  accept=".pdf,.txt"
+                  accept=".pdf,.txt,.json"
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                   id="file-upload"
@@ -139,8 +159,8 @@ function App() {
                     </div>
                   ) : (
                     <div>
-                      <p className="upload-text">点击上传 PDF 或 TXT 文件</p>
-                      <p className="upload-hint">支持课件、笔记等学习资料</p>
+                      <p className="upload-text">点击上传 PDF、TXT 或 JSON 文件</p>
+                      <p className="upload-hint">支持课件、笔记或已导出的知识网络</p>
                     </div>
                   )}
                 </label>
@@ -219,13 +239,20 @@ function App() {
             </button>
             <h1>🌐 知识网络图谱</h1>
             <div className="header-actions">
-              <button className="action-btn">💾 保存</button>
-              <button className="action-btn">🖨️ 导出</button>
+              <button 
+                className="action-btn"
+                onClick={() => exportKnowledgeNetwork(knowledgeNetwork)}
+              >
+                💾 导出JSON
+              </button>
             </div>
           </div>
           
           <div className="result-content">
-            <KnowledgeTree data={knowledgeNetwork} />
+            <KnowledgeTree 
+              data={knowledgeNetwork} 
+              onDataChange={(updatedData) => setKnowledgeNetwork(updatedData)}
+            />
           </div>
         </div>
       )}

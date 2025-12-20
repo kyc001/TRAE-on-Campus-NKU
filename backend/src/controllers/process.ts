@@ -117,6 +117,44 @@ const processController = {
       console.error('Error expanding node:', error);
       res.status(500).json({ error: 'Failed to expand node' });
     }
+  },
+
+  // 问AI解释知识点
+  askAI: async (req: Request, res: Response) => {
+    try {
+      const { nodeTitle, nodeSummary, context, model = 'deepseek' } = req.body;
+      
+      if (!nodeTitle) {
+        return res.status(400).json({ error: 'nodeTitle is required' });
+      }
+
+      // 生成任务ID
+      const taskId = Date.now().toString();
+      taskStatus[taskId] = { status: 'processing', progress: 0 };
+
+      // 异步获取AI解释
+      documentService.askAI(nodeTitle, nodeSummary, context, model)
+        .then((result: any) => {
+          taskStatus[taskId] = {
+            status: 'completed',
+            progress: 100,
+            result: result
+          };
+        })
+        .catch((error: Error) => {
+          taskStatus[taskId] = {
+            status: 'failed',
+            progress: 0,
+            error: error.message
+          };
+        });
+
+      // 返回任务ID
+      res.json({ taskId });
+    } catch (error) {
+      console.error('Error asking AI:', error);
+      res.status(500).json({ error: 'Failed to get AI explanation' });
+    }
   }
 };
 

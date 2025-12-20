@@ -12,11 +12,17 @@ import ReactFlow, {
   Connection,
   NodeMouseHandler,
 } from 'react-flow-renderer';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { KnowledgeNode } from '../types';
 import 'react-flow-renderer/dist/style.css';
 
 interface KnowledgeTreeProps {
   data: KnowledgeNode;
+  onDataChange?: (data: KnowledgeNode) => void;
 }
 
 // 自定义节点类型
@@ -52,6 +58,38 @@ const CustomNode = ({ data }: { data: any }) => {
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
+};
+
+// 深度更新节点树（递归查找并更新节点）
+const updateNodeInTree = (
+  root: KnowledgeNode, 
+  parentNode: KnowledgeNode, 
+  oldNode: KnowledgeNode, 
+  newNode: KnowledgeNode
+): KnowledgeNode => {
+  // 如果当前节点就是父节点，更新其子节点
+  if (root.title === parentNode.title && root.summary === parentNode.summary) {
+    return {
+      ...root,
+      children: root.children.map(child => 
+        child.title === oldNode.title && child.summary === oldNode.summary
+          ? newNode
+          : child
+      )
+    };
+  }
+  
+  // 递归搜索子节点
+  if (root.children && root.children.length > 0) {
+    return {
+      ...root,
+      children: root.children.map(child => 
+        updateNodeInTree(child, parentNode, oldNode, newNode)
+      )
+    };
+  }
+  
+  return root;
 };
 
 // 缓存管理
@@ -96,11 +134,14 @@ const getFromCache = (node: KnowledgeNode): KnowledgeNode | null => {
   return nodeCache[key] || null;
 };
 
-const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
+const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => {
   const [history, setHistory] = useState<KnowledgeNode[]>([]);
   const [currentNode, setCurrentNode] = useState<KnowledgeNode>(data);
   const [selectedNode, setSelectedNode] = useState<KnowledgeNode | null>(null);
   const [expandingNode, setExpandingNode] = useState<boolean>(false);
+  const [aiExplanation, setAiExplanation] = useState<string>('');
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
+  const [loadingExplanation, setLoadingExplanation] = useState<boolean>(false);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -200,8 +241,17 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
       const { expandNode } = await import('../services/api');
       const expandedNode = await expandNode(child.title, child.summary, 'deepseek');
       
-      const updatedNode = { ...child, children: expandedNode.children };
+      // expandedNode已经是完整的节点对象，包含children
+      const updatedNode = { ...child, children: expandedNode.children || [] };
       addToCache(updatedNode);
+      
+      console.log('生成的子节点:', expandedNode.children);
+      
+      // 更新原始数据结构
+      const updatedData = updateNodeInTree(data, currentNode, child, updatedNode);
+      if (onDataChange) {
+        onDataChange(updatedData);
+      }
       
       // 进入下一级
       setHistory([...history, currentNode]);
@@ -239,11 +289,22 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
       const { expandNode } = await import('../services/api');
       const expandedNode = await expandNode(node.title, node.summary, 'deepseek');
       
-      // 更新节点数据
-      const updatedNode = { ...node, children: expandedNode.children };
+      console.log('扩展节点返回数据:', expandedNode);
+      console.log('子节点数量:', expandedNode.children?.length);
+      
+      // 合并新生成的子节点和已有的子节点
+      const existingChildren = node.children || [];
+      const newChildren = expandedNode.children || [];
+      const updatedNode = { ...node, children: [...existingChildren, ...newChildren] };
       
       // 添加到缓存
       addToCache(updatedNode);
+      
+      // 更新原始数据结构
+      const updatedData = updateNodeInTree(data, currentNode, node, updatedNode);
+      if (onDataChange) {
+        onDataChange(updatedData);
+      }
       
       // 更新选中节点
       if (selectedNode && selectedNode.title === node.title) {
@@ -268,6 +329,28 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
     }
   };
 
+  // 问AI解释知识点
+  const handleAskAI = async (node: KnowledgeNode) => {
+    setLoadingExplanation(true);
+    setShowExplanation(true);
+    setAiExplanation('');
+    
+    try {
+      // 构建上下文路径
+      const contextPath = [...history.map(h => h.title), currentNode.title, node.title].join(' > ');
+      
+      const { askAI } = await import('../services/api');
+      const explanation = await askAI(node.title, node.summary, contextPath, 'deepseek');
+      
+      setAiExplanation(explanation);
+    } catch (error) {
+      console.error('获取AI解释失败:', error);
+      setAiExplanation('抱歉，获取解释失败，请稍后重试。');
+    } finally {
+      setLoadingExplanation(false);
+    }
+  };
+
   // 返回上一级
   const handleBack = () => {
     if (history.length > 0) {
@@ -275,6 +358,7 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
       setHistory(history.slice(0, -1));
       setCurrentNode(previousNode);
       setSelectedNode(null);
+      setShowExplanation(false);
     }
   };
 
@@ -384,6 +468,26 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
                 {expandingNode ? '正在扩展...' : '扩展更多子节点'}
               </button>
             )}
+            
+            {/* 问AI按钮 */}
+            <button
+              onClick={() => handleAskAI(selectedNode)}
+              disabled={loadingExplanation}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: loadingExplanation ? 'var(--text-secondary)' : '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: loadingExplanation ? 'not-allowed' : 'pointer',
+                fontWeight: 'bold',
+                transition: 'background 0.2s',
+                fontSize: '0.9rem'
+              }}
+            >
+              {loadingExplanation ? '🤔 AI思考中...' : '🤖 问AI解释'}
+            </button>
           </div>
           
           {/* 缓存信息 */}
@@ -392,6 +496,91 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data }) => {
           </div>
         </div>
       )}
+
+      {/* AI解释弹窗 */}
+      {showExplanation && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '600px',
+          maxWidth: '90%',
+          maxHeight: '80%',
+          background: 'var(--card-bg)',
+          borderRadius: '12px',
+          padding: '25px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          zIndex: 30,
+          border: '1px solid var(--border-color)',
+          overflowY: 'auto',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '1.3rem' }}>🤖 AI 详细解释</h3>
+            <button 
+              onClick={() => setShowExplanation(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.5rem' }}
+            >
+              ×
+            </button>
+          </div>
+          
+          {loadingExplanation ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🤔</div>
+              <div>AI 正在思考中...</div>
+            </div>
+          ) : (
+            <div 
+              style={{ 
+                color: 'var(--text-primary)', 
+                lineHeight: '1.8', 
+                fontSize: '0.95rem'
+              }}
+              className="markdown-content"
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkMath, remarkGfm]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  h1: ({node, ...props}) => <h1 style={{ color: 'var(--accent-color)', marginTop: '20px', marginBottom: '10px' }} {...props} />,
+                  h2: ({node, ...props}) => <h2 style={{ color: 'var(--primary-color)', marginTop: '18px', marginBottom: '10px' }} {...props} />,
+                  h3: ({node, ...props}) => <h3 style={{ color: 'var(--primary-color)', marginTop: '15px', marginBottom: '8px' }} {...props} />,
+                  h4: ({node, ...props}) => <h4 style={{ color: 'var(--primary-color)', marginTop: '12px', marginBottom: '8px' }} {...props} />,
+                  p: ({node, ...props}) => <p style={{ marginBottom: '12px' }} {...props} />,
+                  code: ({node, inline, ...props}: any) => 
+                    inline 
+                      ? <code style={{ background: 'rgba(100, 100, 100, 0.2)', padding: '2px 6px', borderRadius: '3px' }} {...props} />
+                      : <code style={{ display: 'block', background: 'rgba(100, 100, 100, 0.2)', padding: '10px', borderRadius: '5px', overflowX: 'auto' }} {...props} />,
+                  ul: ({node, ...props}) => <ul style={{ marginLeft: '20px', marginBottom: '12px' }} {...props} />,
+                  ol: ({node, ...props}) => <ol style={{ marginLeft: '20px', marginBottom: '12px' }} {...props} />,
+                  li: ({node, ...props}) => <li style={{ marginBottom: '6px' }} {...props} />,
+                }}
+              >
+                {aiExplanation}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 遮罩层 */}
+      {showExplanation && (
+        <div 
+          onClick={() => setShowExplanation(false)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 25
+          }}
+        />
+      )}
+
       {/* 导航栏 */}
       <div style={{
         position: 'absolute',
