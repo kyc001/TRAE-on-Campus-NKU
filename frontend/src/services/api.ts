@@ -1,5 +1,9 @@
 import axios from 'axios';
 import { KnowledgeNode, UploadResponse, TaskStatus } from '../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// 配置 PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 // API基础URL
 // 全 Vercel 部署（前端 + /api Functions）时，始终使用同域相对路径。
@@ -14,18 +18,52 @@ const api = axios.create({
   }
 });
 
-// 上传文件
+// 上传文件（现在支持浏览器端解析 PDF，无文件大小限制）
 export const uploadFile = async (file: File): Promise<UploadResponse> => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await api.post<UploadResponse>('/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
+  // 如果是 PDF，在浏览器端解析
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items.map((item: any) => item.str).join(' ');
+        text += pageText + '\n';
+      }
+      
+      return {
+        fileId: `browser-${Date.now()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        text: text.trim(),
+      };
+    } catch (error) {
+      console.error('PDF 解析失败:', error);
+      throw new Error('PDF 文件解析失败，请确保文件未损坏');
     }
-  });
+  }
   
-  return response.data;
+  // 如果是 TXT，直接读取
+  if (file.name.toLowerCase().endsWith('.txt')) {
+    try {
+      const text = await file.text();
+      return {
+        fileId: `browser-${Date.now()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        text,
+      };
+    } catch (error) {
+      console.error('TXT 读取失败:', error);
+      throw new Error('文本文件读取失败');
+    }
+  }
+  
+  // 其他文件类型返回错误
+  throw new Error('不支持的文件类型，仅支持 PDF 和 TXT');
 };
 
 // 处理文档，生成知识网络
