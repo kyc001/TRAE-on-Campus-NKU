@@ -1,7 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import deepseekService from './ai.js';
 import doubaoService from './doubao.js';
+
+// 创建require函数用于导入CommonJS模块
+const require = createRequire(import.meta.url);
 
 // 文档处理服务
 const documentService = {
@@ -21,9 +25,8 @@ const documentService = {
         const fileExtension = path.extname(filePath).toLowerCase();
         
         if (fileExtension === '.pdf') {
-          // 动态导入 pdf-parse
-          const pdfParseModule = await import('pdf-parse');
-          const pdfParse = pdfParseModule.default || pdfParseModule;
+          // 使用 CommonJS require 导入 pdf-parse
+          const pdfParse = require('pdf-parse');
           const dataBuffer = fs.readFileSync(filePath);
           const pdfData = await pdfParse(dataBuffer);
           content = pdfData.text;

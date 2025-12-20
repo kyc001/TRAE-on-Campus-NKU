@@ -133,6 +133,9 @@ export const askAI = async (nodeTitle: string, nodeSummary?: string, context?: s
   const taskId = response.data.taskId;
   const result = await pollTaskStatus(taskId);
   
-  // 返回AI的解释文本
-  return result.explanation || '未能获取解释';
+  // 返回AI的解释文本（result是包含explanation字段的对象）
+  if (result && typeof result === 'object' && 'explanation' in result) {
+    return (result as any).explanation || '未能获取解释';
+  }
+  return typeof result === 'string' ? result : '未能获取解释';
 };

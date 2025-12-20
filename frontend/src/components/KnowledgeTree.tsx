@@ -202,7 +202,7 @@ const KnowledgeTree: React.FC<KnowledgeTreeProps> = ({ data, onDataChange }) => 
   );
 
   // 处理节点点击
-  const onNodeClick: NodeMouseHandler = (event, node) => {
+  const onNodeClick: NodeMouseHandler = (_event, node) => {
     if (node.id === 'root') {
       setSelectedNode(currentNode);
     } else if (node.id.startsWith('child-')) {
