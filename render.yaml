@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: trae-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
