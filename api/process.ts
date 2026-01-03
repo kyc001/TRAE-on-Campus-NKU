@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleCORS, taskStatus } from './lib/utils.js';
+import { handleCORS, taskStatus, APIError, handleError } from './lib/utils.js';
 import deepseekService from './services/ai.js';
 
 export default async function handler(
@@ -9,7 +9,7 @@ export default async function handler(
   if (handleCORS(req, res)) return;
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
   }
 
   try {
@@ -19,8 +19,9 @@ export default async function handler(
     const safeTopic = typeof topic === 'string' ? topic : '';
     const safeExpectedTime = typeof expectedTime === 'string' ? expectedTime : undefined;
 
+    // 使用 APIError 进行参数验证
     if (!safeText && !safeTopic) {
-      return res.status(400).json({ error: 'text or topic is required' });
+      throw APIError.badRequest('text 或 topic 至少需要提供一个', 'MISSING_CONTENT');
     }
 
     // 限制文本长度避免 AI 处理超时（保留前 8000 字符）
@@ -36,15 +37,9 @@ export default async function handler(
     taskStatus[taskId] = { status: 'completed', progress: 100, result };
 
     res.status(200).json({ taskId, result });
-  } catch (error: any) {
-    console.error('Error:', error);
-    const taskId = Date.now().toString();
-    taskStatus[taskId] = {
-      status: 'failed',
-      progress: 0,
-      error: error?.message || 'Internal server error',
-    };
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error: unknown) {
+    // 使用统一错误处理
+    handleError(error, res);
   }
 }
 
